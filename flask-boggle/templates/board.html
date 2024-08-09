@@ -1,0 +1,31 @@
+<!-- board.html -->
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boggle Game</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Boggle Game</h1>
+    <table>
+        {% for row in board %}
+            <tr>
+                {% for letter in row %}
+                    <td>{{ letter }}</td>
+                {% endfor %}
+            </tr>
+        {% endfor %}
+    </table>
+    <form id="word-form">
+        <input type="text" name="word" id="word" placeholder="Enter a word" required>
+        <button type="submit">Submit</button>
+    </form>
+    <div id="result"></div>
+    <div id="score">Score:<b class="score"></b></div>
+    <div id="timer">Time left:<b class="timer"></b></div>
+</body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"></script>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</html>
