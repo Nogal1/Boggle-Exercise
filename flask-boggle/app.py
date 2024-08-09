@@ -6,32 +6,41 @@ app.config["SECRET_KEY"] = "supersecret"
 
 boggle_game = Boggle()
 
+
 @app.route("/")
-def display_board():
-    """Generate and display the Boggle board."""
+def homepage():
+    """Show board."""
+
     board = boggle_game.make_board()
     session['board'] = board
-    return render_template("board.html", board=board)
+    highscore = session.get("highscore", 0)
+    nplays = session.get("nplays", 0)
 
-@app.route("/check-word", methods=["POST"])
+    return render_template("board.html", board=board,
+                           highscore=highscore,
+                           nplays=nplays)
+
+
+@app.route("/check-word")
 def check_word():
-    """Check if a word is valid and exists on the board."""
-    word = request.json["word"]
-    board = session["board"]
-    result = boggle_game.check_valid_word(board, word)
+    """Check if word is in dictionary."""
 
-    return jsonify({"result": result})
+    word = request.args["word"]
+    board = session["board"]
+    response = boggle_game.check_valid_word(board, word)
+
+    return jsonify({'result': response})
+
 
 @app.route("/post-score", methods=["POST"])
 def post_score():
-    """Update the number of games played and the highest score."""
+    """Receive score, update nplays, update high score if appropriate."""
+
     score = request.json["score"]
-    high_score = session.get("high_score", 0)
-    games_played = session.get("games_played", 0)
+    highscore = session.get("highscore", 0)
+    nplays = session.get("nplays", 0)
 
-    session["high_score"] = max(score, high_score)
-    session["games_played"] = games_played + 1
+    session['nplays'] = nplays + 1
+    session['highscore'] = max(score, highscore)
 
-    return jsonify({"high_score": session["high_score"], "games_played": session["games_played"]})
-
-
+    return jsonify(brokeRecord=score > highscore)

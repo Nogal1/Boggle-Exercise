@@ -1,57 +1,99 @@
 class BoggleGame {
-    constructor(boardId, timerId, scoreId, resultId) {
-        this.board = document.getElementById(boardId);
-        this.timer = document.getElementById(timerId);
-        this.score = document.getElementById(scoreId);
-        this.result = document.getElementById(resultId);
-        this.timeLeft = 60;
-        this.scoreValue = 0;
-        this.gameActive = true;  // Flag to track if the game is still active
+    /* make a new game at this DOM id */
 
-        this.timerInterval = setInterval(this.tick.bind(this), 1000);
+    constructor(boardId, secs = 60) {
+        this.secs = secs; // game length
+        this.showTimer();
+
+        this.score = 0;
+        this.words = new Set();
+        this.board = $("#" + boardId);
+
+        // every 1000 msec, "tick"
+        this.timer = setInterval(this.tick.bind(this), 1000);
+
+        $(".add-word", this.board).on("submit", this.handleSubmit.bind(this));
     }
 
-    async submitWord(word) {
-        if (!this.gameActive) return;  // Prevent word submission if the game is over
+    /* show word in list of words */
 
-        const response = await axios.post("/check-word", { word });
-        const result = response.data.result;
-        this.showResult(result, word);
-        if (result === "ok") this.updateScore(word.length);
+    showWord(word) {
+        $(".words", this.board).append($("<li>", { text: word }));
     }
 
-    showResult(result, word) {
-        if (result === "ok") {
-            this.result.innerText = `${word} is a valid word!`;
-        } else if (result === "not-on-board") {
-            this.result.innerText = `${word} is not on the board.`;
-        } else {
-            this.result.innerText = `${word} is not a valid word.`;
+    /* show score in html */
+
+    showScore() {
+        $(".score", this.board).text(this.score);
+    }
+
+    /* show a status message */
+
+    showMessage(msg, cls) {
+        $(".msg", this.board)
+            .text(msg)
+            .removeClass()
+            .addClass(`msg ${cls}`);
+    }
+
+    /* handle submission of word: if unique and valid, score & show */
+
+    async handleSubmit(evt) {
+        evt.preventDefault();
+        const $word = $(".word", this.board);
+
+        let word = $word.val();
+        if (!word) return;
+
+        if (this.words.has(word)) {
+            this.showMessage(`Already found ${word}`, "err");
+            return;
         }
+
+        // check server for validity
+        const resp = await axios.get("/check-word", { params: { word: word } });
+        if (resp.data.result === "not-word") {
+            this.showMessage(`${word} is not a valid English word`, "err");
+        } else if (resp.data.result === "not-on-board") {
+            this.showMessage(`${word} is not a valid word on this board`, "err");
+        } else {
+            this.showWord(word);
+            this.score += word.length;
+            this.showScore();
+            this.words.add(word);
+            this.showMessage(`Added: ${word}`, "ok");
+        }
+
+        $word.val("").focus();
     }
 
-    updateScore(points) {
-        this.scoreValue += points;
-        this.score.innerText = `Score: ${this.scoreValue}`;
+    /* Update timer in DOM */
+
+    showTimer() {
+        $(".timer", this.board).text(this.secs);
     }
+
+    /* Tick: handle a second passing in game */
 
     async tick() {
-        this.timeLeft--;
-        this.timer.innerText = `Time left: ${this.timeLeft} seconds`;
+        this.secs -= 1;
+        this.showTimer();
 
-        if (this.timeLeft === 0) {
-            this.endGame();
+        if (this.secs === 0) {
+            clearInterval(this.timer);
+            await this.scoreGame();
         }
     }
 
-    async endGame() {
-        this.gameActive = false;  // Set the game as inactive
-        clearInterval(this.timerInterval);
-        this.result.innerText = "Time's up!";
-        await axios.post("/post-score", { score: this.scoreValue });
+    /* end of game: score and update message. */
+
+    async scoreGame() {
+        $(".add-word", this.board).hide();
+        const resp = await axios.post("/post-score", { score: this.score });
+        if (resp.data.brokeRecord) {
+            this.showMessage(`New record: ${this.score}`, "ok");
+        } else {
+            this.showMessage(`Final score: ${this.score}`, "ok");
+        }
     }
 }
-
-// Initialize the game
-const game = new BoggleGame("board", "timer", "score", "result");
-
